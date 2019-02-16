@@ -1,0 +1,124 @@
+service:
+  name: testingServerless
+
+plugins:
+  - serverless-webpack
+  - serverless-alexa-skills
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+
+custom:
+  alexa:
+    # Step 1: Run `sls alexa auth` to authenticate
+    # Step 2: Run `sls alexa create --name "Serverless Alexa Typescript" --locale en-GB --type custom` to create a new skill
+    # Step 2: Run `sls alexa create --name "testingServerless" --locale en-US --type custom` to create a new skill
+    skills:
+        # Step 3: Paste the skill id returned by the create command here:
+      - id: ${file(env.yml):SKILL_ID}
+        manifest:
+          publishingInformation:
+            locales:
+              en-US:
+                name: testingServerless
+          apis:
+            custom:
+              endpoint:
+                # Step 4: Do your first deploy of your Serverless stack
+                # Step 5: Paste the ARN of your lambda here:
+                uri: ${file(env.yml):ENDPOINT_URI}
+                # Step 6: Run `sls alexa update` to deploy the skill manifest
+                # Step 7: Run `sls alexa build` to build the skill interaction model
+                # Step 8: Enable the skill in the Alexa app to start testing.
+              interfaces:
+                - type: AUDIO_PLAYER
+          manifestVersion: '1.0'
+          permissions:
+            - name: 'alexa::devices:all:address:full:read'  # Full Address
+            # - name: 'alexa:devices:all:address:country_and_postal_code:read'  # Postal Code, Country only
+            - name: 'alexa::profile:name:read'
+            - name: 'alexa::profile:email:read'
+            - name: 'alexa::devices:all:geolocation:read'
+        models:
+          en-US:
+            interactionModel:
+              languageModel:
+                invocationName: testing
+                intents:
+                  - name: HelloIntent
+                    samples:
+                      - 'hello'
+                  - name: StreamIntent
+                    samples:
+                      - 'stream'
+                  - name: PlayStreamIntent
+                    samples:
+                      - 'play stream'
+                  - name: PlaySongIntent
+                    samples:
+                      - 'play song'
+                  - name: GetUserIntent
+                    samples:
+                      - 'get user'
+                      - 'user'
+                      - 'user id'
+                  # - name: PineAppleIntent
+                  #   slots:
+                  #   - name: Fisrt
+                  #     type: AMAZON.Food
+                  #   - name: Second
+                  #     type: AMAZON.Food
+                  #   samples:
+                  #    - 'I have {First} and {Second}'
+
+                  - name: Repeat
+                    slots:
+                    - name: Number
+                      type: AMAZON.NUMBER
+                    samples:
+                     - 'say {Number}'
+
+                  - name: RepeatNameIntent
+                    slots:
+                    - name: repeatName
+                      type: REPEAT_NAME
+                    samples:
+                     - 'repeat {repeatName}'
+                  
+                  - name: GetLocationIntent
+                    samples:
+                     - 'location'
+                     - 'get location'
+                  
+                  - name: AMAZON.NavigateHomeIntent
+                    samples: []
+                  - name: AMAZON.StopIntent
+                    samples: []
+                  - name: AMAZON.HelpIntent
+                    samples: []
+                  - name: AMAZON.CancelIntent
+                    samples: []
+                  - name: AMAZON.PauseIntent
+                    samples: []
+                  - name: AMAZON.ResumeIntent
+                    samples: []
+                types: 
+                  - name: REPEAT_NAME
+                    values: 
+                      - name: 
+                          value: 'Garry Kasparov'
+                      - name: 
+                          value: 'Mark Someone'
+                      - name: 
+                          value: 'New person'
+                        
+
+
+                
+
+functions:
+  alexa:
+    handler: handler.alexa
+    events:
+      - alexaSkill: ${self:custom.alexa.skills.0.id}
