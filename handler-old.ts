@@ -6,7 +6,7 @@ const LaunchRequestHandler = {
     handlerInput.responseBuilder.speak('Hello world and stream!').getResponse()
 }
 
-export const alexa = Ask.SkillBuilders.custom()
+export const alexaOld = Ask.SkillBuilders.custom()
   .addRequestHandlers(
     LaunchRequestHandler
   )

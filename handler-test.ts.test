@@ -383,8 +383,8 @@ const PlaySongIntentHandler = {
       && handlerInput.requestEnvelope.request.intent.name === 'PlaySongIntent';
   },
   handle(handlerInput) {
-    const offset = 0 // 10 * 1000;
-    const speechText = 'Song';
+    const offset = 10 * 1000;
+    const speechText = 'Stream';
     const url = 'https://s3.amazonaws.com/ttbiay/TTBIAY_04_25.mp3';
     lastPlayedURL = url;
 
@@ -396,33 +396,6 @@ const PlaySongIntentHandler = {
       .withSimpleCard('Offset', offsetInMilliseconds)
       .addAudioPlayerPlayDirective('REPLACE_ALL',url, url, offset)
       .getResponse();
-  }
-};
-
-// Play the 'date' bible reading
-const PlayDateBibleReadingIntentHandler = {
-  canHandle(handlerInput) {
-    return handlerInput.requestEnvelope.request.type === 'IntentRequest'
-      && handlerInput.requestEnvelope.request.intent.name === 'PlayDateBibleReading';
-  },
-  handle(handlerInput) {
-    try {
-      const speechText = 'Stream';
-      const url = 'https://s3.amazonaws.com/ttbiay/TTBIAY_04_25.mp3';
-      const offset = 10 * 1000;
-      lastPlayedURL = url;
-  
-      const offsetInMilliseconds = handlerInput.requestEnvelope.request.offsetInMilliseconds;
-      console.log('offset', offsetInMilliseconds);
-  
-      return handlerInput.responseBuilder
-        .speak(speechText)
-        .withSimpleCard('Offset', offsetInMilliseconds)
-        .addAudioPlayerPlayDirective('REPLACE_ALL',url, url, offset)
-        .getResponse();
-    } catch (error) {
-      console.error(error);
-    }
   }
 };
 
@@ -446,7 +419,6 @@ const StopIntentHandler = {
   }
 };
 
-// Pause current audio
 const PauseIntentHandler = {
   canHandle(handlerInput) {
     return handlerInput.requestEnvelope.request.type === 'IntentRequest'
@@ -455,29 +427,19 @@ const PauseIntentHandler = {
   },
   handle(handlerInput) {
     const speechText = 'Pause';
-    console.log('Pause');
 
-    // Get audio status: url and offset
-    const audioStatus = handlerInput.requestEnvelope.context.AudioPlayer;
-    const currentStream = audioStatus.token;
-    const offsetInMilliseconds = handlerInput.requestEnvelope.context.AudioPlayer.offsetInMilliseconds;
-    // const playerActivity = audioStatus.playerActivity;
-    console.log('audioStatus', audioStatus);
-    console.log('currentStream', currentStream);
+    const offsetInMilliseconds = handlerInput.requestEnvelope.request;
     console.log('offset', offsetInMilliseconds);
 
-    // Set audioStatus in the session state
-    handlerInput.attributesManager.setSessionAttributes(audioStatus);
+    // How do I use this?
+    // handlerInput.attributesManager.setRequestAttributes(requestAttributes : {[key : string] : any}) : void;
+    // handlerInput.attributesManager.setSessionAttributes(sessionAttributes : {[key : string] : any}) : void;
 
-    // // How do I use this?
-    // // handlerInput.attributesManager.setRequestAttributes(requestAttributes : {[key : string] : any}) : void;
-    // // handlerInput.attributesManager.setSessionAttributes(sessionAttributes : {[key : string] : any}) : void;
 
     return handlerInput.responseBuilder
       .speak(speechText)
-      .withSimpleCard('audioStatus', offsetInMilliseconds)
+      .withSimpleCard('Offset', offsetInMilliseconds)
       .addAudioPlayerStopDirective()
-      .withShouldEndSession(false)
       .getResponse();
   }
 };
@@ -491,50 +453,15 @@ const ResumeIntentHandler = {
     const speechText = 'Resume';
     // const userId = handlerInput.requestEnvelope.context ? handlerInput.requestEnvelope.context.System.user.userId : handlerInput.requestEnvelope.session.user.userId;  // use this?
     // const userId =  handlerInput.requestEnvelope.session.user.userId;
-    // const url = lastPlayedURL !== '' ? lastPlayedURL : 'https://13983.live.streamtheworld.com/FAMILYRADIO_WESTAAC.aac';
+    const url = lastPlayedURL !== '' ? lastPlayedURL : 'https://13983.live.streamtheworld.com/FAMILYRADIO_WESTAAC.aac';
 
     // console.log('handlerInput', handlerInput);
     // console.log('userId', userId);
 
-    // Check if the session is new
-    const newSession = handlerInput.requestEnvelope.session.new;
-    console.log("New session: ", newSession);
-    
-    // Try to resume audio
-    try {
-      // Get the current audioStatus
-      const audioStatus = handlerInput.attributesManager.getSessionAttributes();
-      console.log('Resume audioStatus: ', audioStatus);
-      const url = audioStatus.token;
-      console.log('url  ', url);
-      let offset = audioStatus.offsetInMilliseconds
-      console.log('offset  ', offset);
-
-      // Offset to 0 if radio stream
-      if (url === 'https://13983.live.streamtheworld.com/FAMILYRADIO_WESTAAC.aac' || url === 'https://18153.live.streamtheworld.com/FAMILYRADIO_EASTAAC.aac') {
-        console.log('stream offset reset: 0')
-        offset = 0;
-      }
-      
-      // If not playing, resume audio
-      // if (audioStatus.playerActivity !== 'PLAYING') {
-      // }
-      console.log(audioStatus.playerActivity);
-      return handlerInput.responseBuilder
-        .speak(speechText)
-        .withSimpleCard(`audioStatus`, `${offset}  ${url}`)
-        .addAudioPlayerPlayDirective('REPLACE_ALL', url, url, offset-1000)
-        .withShouldEndSession(true)
-        .getResponse();
-      
-    } catch (error) {
-      console.error(error);
-
-      return handlerInput.responseBuilder
-        .speak('Could not resume audio')
-        .withShouldEndSession(true)
-        .getResponse();
-    }
+    return handlerInput.responseBuilder
+      // .speak(speechText)
+      .addAudioPlayerPlayDirective('REPLACE_ALL', url, url, 20000)
+      .getResponse();
   }
 };
 
@@ -637,7 +564,128 @@ const myErrorHandler = {
 //     handlerInput.responseBuilder.speak('Default Response').getResponse()
 // }
 
-export const alexa = Ask.SkillBuilders.custom()
+/* INTERCEPTORS */
+
+const LoadSessionAttributesRequestInterceptor = {
+  async process(handlerInput) {
+    const SessionAttributes = await handlerInput.attributesManager.getSessionAttributes();
+
+    // Check if user is invoking the skill the first time and initialize preset values
+    if (Object.keys(SessionAttributes).length === 0) {
+      handlerInput.attributesManager.setSessionAttributes({
+        playbackInfo: {
+          index: 0,
+          offsetInMilliseconds: 0,
+          playbackIndexChanged: true,
+          inPlaybackSession: false,
+          hasPreviousPlaybackSession: false,
+        },
+      });
+    }
+  },
+};
+
+const SaveSessionAttributesResponseInterceptor = {
+  async process(handlerInput) {
+    await handlerInput.attributesManager.saveSessionAttributes();
+  },
+};
+
+/* HELPER FUNCTIONS */
+
+const controller = {
+  async play(handlerInput) {
+    const {
+      attributesManager,
+      responseBuilder
+    } = handlerInput;
+
+    const playbackInfo = await getPlaybackInfo(handlerInput);
+    const {
+      playOrder,
+      offsetInMilliseconds,
+      index
+    } = playbackInfo;
+
+    const playBehavior = 'REPLACE_ALL';
+    const podcast = constants.audioData[playOrder[index]];
+    const token = playOrder[index];
+    playbackInfo.nextStreamEnqueued = false;
+
+    responseBuilder
+      .speak(`This is ${podcast.title}`)
+      .withShouldEndSession(true)
+      .addAudioPlayerPlayDirective(playBehavior, podcast.url, token, offsetInMilliseconds, null);
+
+    if (await canThrowCard(handlerInput)) {
+      const cardTitle = `Playing ${podcast.title}`;
+      const cardContent = `Playing ${podcast.title}`;
+      responseBuilder.withSimpleCard(cardTitle, cardContent);
+    }
+
+    return responseBuilder.getResponse();
+  },
+  stop(handlerInput) {
+    return handlerInput.responseBuilder
+      .addAudioPlayerStopDirective()
+      .getResponse();
+  },
+  async playNext(handlerInput) {
+    const {
+      playbackInfo,
+      playbackSetting,
+    } = await handlerInput.attributesManager.getPersistentAttributes();
+
+    const nextIndex = (playbackInfo.index + 1) % constants.audioData.length;
+
+    if (nextIndex === 0 && !playbackSetting.loop) {
+      return handlerInput.responseBuilder
+        .speak('You have reached the end of the playlist')
+        .addAudioPlayerStopDirective()
+        .getResponse();
+    }
+
+    playbackInfo.index = nextIndex;
+    playbackInfo.offsetInMilliseconds = 0;
+    playbackInfo.playbackIndexChanged = true;
+
+    return this.play(handlerInput);
+  },
+  async playPrevious(handlerInput) {
+    const {
+      playbackInfo,
+      playbackSetting,
+    } = await handlerInput.attributesManager.getPersistentAttributes();
+
+    let previousIndex = playbackInfo.index - 1;
+
+    if (previousIndex === -1) {
+      if (playbackSetting.loop) {
+        previousIndex += constants.audioData.length;
+      } else {
+        return handlerInput.responseBuilder
+          .speak('You have reached the start of the playlist')
+          .addAudioPlayerStopDirective()
+          .getResponse();
+      }
+    }
+
+    playbackInfo.index = previousIndex;
+    playbackInfo.offsetInMilliseconds = 0;
+    playbackInfo.playbackIndexChanged = true;
+
+    return this.play(handlerInput);
+  },
+};
+
+function getOffsetInMilliseconds(handlerInput) {
+  // Extracting offsetInMilliseconds received in the request.
+  return handlerInput.requestEnvelope.request.offsetInMilliseconds;
+}
+
+
+
+export const alexaTest = Ask.SkillBuilders.custom()
   .addRequestHandlers(
     LaunchRequestHandler,
     HelloWorldIntentHandler,
@@ -647,7 +695,6 @@ export const alexa = Ask.SkillBuilders.custom()
     StreamIntentHandler,
     PlayStreamIntentHandler,
     PlaySongIntentHandler,
-    PlayDateBibleReadingIntentHandler,
     StopIntentHandler,
     PauseIntentHandler,
     ResumeIntentHandler,
@@ -655,5 +702,7 @@ export const alexa = Ask.SkillBuilders.custom()
     GetUserIntentHandler,
     HelpIntentHandler
   )
+  .addRequestInterceptors(LoadSessionAttributesRequestInterceptor)
+  .addResponseInterceptors(SaveSessionAttributesResponseInterceptor)
   .addErrorHandlers(myErrorHandler)
   .lambda();
